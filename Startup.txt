@@ -1,0 +1,9 @@
+- Run Server
+1: Open PowerShell
+2: cd PS C:\Users\josan\OneDrive\Documents\Student Academic Demo\client>
+3: node index.js
+
+- Run React Client
+1: Open PowerShell
+2: cd "C:\Users\josan\OneDrive\Documents\Student Academic Demo\server"
+3: npm.cmd run dev
