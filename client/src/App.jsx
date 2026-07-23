@@ -35,6 +35,9 @@ function App() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
+  const [adminSelectedStudent, setAdminSelectedStudent] = useState(null);
+  const [studentSearchQuery, setStudentSearchQuery] = useState("");
+
   useEffect(() => {
     async function loadDashboardData() {
       try {
@@ -61,6 +64,8 @@ function App() {
 
   useEffect(() => {
     setCurrentPage(1);
+    setAdminSelectedStudent(null);
+    setStudentSearchQuery("");
   }, [activeView, sortStack]);
 
   function handleLogin(event) {
@@ -95,6 +100,24 @@ function App() {
     setAccountMenuOpen(false);
     setFilterMenuOpen(false);
     setActiveView("all");
+    setAdminSelectedStudent(null);
+    setStudentSearchQuery("");
+  }
+
+  function handleAdminStudentSelect(student) {
+    setAdminSelectedStudent(student);
+    setStudentSearchQuery("");
+    setFilterMenuOpen(false);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  }
+
+  function handleBackToAdminTable() {
+    setAdminSelectedStudent(null);
+    setStudentSearchQuery("");
   }
 
   function handleStackableSortClick(key) {
@@ -371,6 +394,7 @@ function App() {
             <AdminDashboard
               activeView={activeView}
               summary={summary}
+              students={students}
               sortStack={sortStack}
               filterMenuOpen={filterMenuOpen}
               setFilterMenuOpen={setFilterMenuOpen}
@@ -389,6 +413,11 @@ function App() {
               goToPreviousPage={goToPreviousPage}
               goToNextPage={goToNextPage}
               goToTop={goToTop}
+              adminSelectedStudent={adminSelectedStudent}
+              studentSearchQuery={studentSearchQuery}
+              setStudentSearchQuery={setStudentSearchQuery}
+              handleAdminStudentSelect={handleAdminStudentSelect}
+              handleBackToAdminTable={handleBackToAdminTable}
             />
           ) : (
             <ParentDashboard
@@ -406,6 +435,7 @@ function App() {
 function AdminDashboard({
   activeView,
   summary,
+  students,
   sortStack,
   filterMenuOpen,
   setFilterMenuOpen,
@@ -423,8 +453,43 @@ function AdminDashboard({
   displayedData,
   goToPreviousPage,
   goToNextPage,
-  goToTop
+  goToTop,
+  adminSelectedStudent,
+  studentSearchQuery,
+  setStudentSearchQuery,
+  handleAdminStudentSelect,
+  handleBackToAdminTable
 }) {
+  const searchResults = useMemo(() => {
+    const searchText = studentSearchQuery.trim().toLowerCase();
+
+    if (searchText.length === 0) {
+      return [];
+    }
+
+    return students
+      .filter((student) =>
+        String(student.student_id).toLowerCase().includes(searchText)
+      )
+      .slice(0, 10);
+  }, [students, studentSearchQuery]);
+
+  if (adminSelectedStudent) {
+    return (
+      <section className="panel">
+        <button className="back-button" onClick={handleBackToAdminTable}>
+          ← Back to student table
+        </button>
+
+        <StudentDetailView student={adminSelectedStudent} />
+
+        <button className="bottom-link" onClick={goToTop}>
+          ▴ Go to top
+        </button>
+      </section>
+    );
+  }
+
   return (
     <section className="panel">
       <div className="panel-heading">
@@ -519,6 +584,43 @@ function AdminDashboard({
 
       <PieChart title={pieChartTitle} data={pieChartData} />
 
+      <div className="admin-search-area">
+        <label htmlFor="studentSearch">Search by Student ID</label>
+
+        <input
+          id="studentSearch"
+          type="text"
+          value={studentSearchQuery}
+          onChange={(event) => setStudentSearchQuery(event.target.value)}
+          placeholder="Example: S1"
+          autoComplete="off"
+        />
+
+        {searchResults.length > 0 && (
+          <div className="search-results">
+            {searchResults.map((student) => (
+              <button
+                key={student.student_id}
+                onClick={() => handleAdminStudentSelect(student)}
+              >
+                <strong>{student.student_id}</strong>
+                <span>
+                  Math: {student.math_score ?? "N/A"} | Reading:{" "}
+                  {student.reading_score ?? "N/A"} | Writing:{" "}
+                  {student.writing_score ?? "N/A"}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {studentSearchQuery.trim().length > 0 && searchResults.length === 0 && (
+          <div className="search-results">
+            <p>No matching student IDs found.</p>
+          </div>
+        )}
+      </div>
+
       <div className="table-wrapper">
         <table>
           <thead>
@@ -537,7 +639,11 @@ function AdminDashboard({
 
           <tbody>
             {currentPageData.map((student) => (
-              <tr key={student.student_id}>
+              <tr
+                key={student.student_id}
+                className="clickable-row"
+                onClick={() => handleAdminStudentSelect(student)}
+              >
                 <td>{student.student_id}</td>
                 <td>{student.grade_level ?? "N/A"}</td>
                 <td>{student.gender ?? "N/A"}</td>
@@ -626,6 +732,18 @@ function ParentDashboard({ activeView, student, goToTop }) {
     );
   }
 
+  return (
+    <section className="panel">
+      <StudentDetailView student={student} />
+
+      <button className="bottom-link" onClick={goToTop}>
+        ▴ Go to top
+      </button>
+    </section>
+  );
+}
+
+function StudentDetailView({ student }) {
   const resultText = student.final_result ?? "N/A";
   const isPassing = String(resultText).toLowerCase().includes("pass");
   const attendanceRate = Number(student.attendance_rate) || 0;
@@ -643,7 +761,7 @@ function ParentDashboard({ activeView, student, goToTop }) {
   ];
 
   return (
-    <section className="panel">
+    <>
       <div className="panel-heading parent-heading">
         <h2>Student Overview</h2>
 
@@ -684,11 +802,7 @@ function ParentDashboard({ activeView, student, goToTop }) {
           <PieChart title="Attendance" data={attendanceData} />
         </div>
       </div>
-
-      <button className="bottom-link" onClick={goToTop}>
-        ▴ Go to top
-      </button>
-    </section>
+    </>
   );
 }
 
